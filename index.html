@@ -134,24 +134,14 @@
   </section>
 
   <script>
-    (async function () {
-      const SHEET_URL =
-        'https://docs.google.com/spreadsheets/d/1JsawymKJADyuKcigW80DVj__yFAwQFpWKCALTXBo0gE/gviz/tq?tqx=out:json';
+    (function () {
+      const SHEET_ID = '1JsawymKJADyuKcigW80DVj__yFAwQFpWKCALTXBo0gE';
+      const CALLBACK = '_sheetDataHandler';
 
       const statusEl = document.getElementById('status-msg');
       const listEl   = document.getElementById('item-list');
 
-      try {
-        const res = await fetch(SHEET_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const text = await res.text();
-        // Google wraps the JSON in a callback: google.visualization.Query.setResponse({...});
-        const start = text.indexOf('(');
-        const end   = text.lastIndexOf(')');
-        if (start === -1 || end === -1 || end <= start) throw new Error('Unexpected response format');
-        const data = JSON.parse(text.slice(start + 1, end));
-
+      function renderRows(data) {
         const rows = data?.table?.rows ?? [];
         if (rows.length === 0) {
           statusEl.textContent = 'No data found.';
@@ -189,10 +179,26 @@
 
           listEl.appendChild(li);
         });
-      } catch (err) {
-        statusEl.className = 'status error';
-        statusEl.textContent = `Failed to load data: ${err.message}`;
       }
+
+      // Use JSONP (script tag injection) to avoid CORS issues with the gviz endpoint
+      const script = document.createElement('script');
+
+      window[CALLBACK] = function (data) {
+        delete window[CALLBACK];
+        script.remove();
+        renderRows(data);
+      };
+
+      script.src = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+                   '/gviz/tq?tqx=responseHandler:' + CALLBACK;
+      script.onerror = function () {
+        delete window[CALLBACK];
+        script.remove();
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Failed to load data.';
+      };
+      document.head.appendChild(script);
     })();
   </script>
 </body>
