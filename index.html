@@ -4,71 +4,56 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Coach Dreyer Training Plans</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <h1>Coach Dreyer Training Plans</h1>
-    <p>
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
-      tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
-      veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
-      commodo consequat. Duis aute irure dolor in reprehenderit in voluptate
-      velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat
-      cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id
-      est laborum.
-    </p>
+    <p>Click on a training plan below to view the details.</p>
+    <ul id="plan-list">
+      <li>Loading...</li>
+    </ul>
 
-    <div id="sheet-data">Loading...</div>
+    <script type="module">
+      import { fetchSheetRows } from "./sheetsLoader.js";
 
-    <script>
-      const id = "1JsawymKJADyuKcigW80DVj__yFAwQFpWKCALTXBo0gE";
-      const sheet = "Ark1";
-      const sheetUrl =
-        "https://docs.google.com/spreadsheets/d/1JsawymKJADyuKcigW80DVj__yFAwQFpWKCALTXBo0gE/gviz/tq?tqx=out:json&tq&gid=0&sheet:Ark1";
-      const proxyUrl = "https://cors.io/?url=" + sheetUrl;
-      const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheet)}`;
+      const SHEET_ID = "1JsawymKJADyuKcigW80DVj__yFAwQFpWKCALTXBo0gE";
+      const API_KEY = "AIzaSyCw0zGv14vKpt2GjPrXzR7u6hUqZV6JV_4";
+      const RANGE = "plans!A1:Z100";
+      const FIELDS = "sheets.data.rowData.values(formattedValue)";
 
-      async function loadSheet() {
-        const container = document.getElementById("sheet-data");
-        try {
-          const response = await fetch(url);
-          const text = await response.text();
-          const json = JSON.parse(text.substring(47).slice(0, -2)); // Strip: google.visualization.Query.setResponse( ... );
-          const rows = json.table.rows;
+      const rows = await fetchSheetRows({
+        sheetId: SHEET_ID,
+        apiKey: API_KEY,
+        range: RANGE,
+        fields: FIELDS,
+      });
 
-          console.log(rows);
+      const list = document.getElementById("plan-list");
+      list.innerHTML = "";
 
-          const table = document.createElement("table");
-          table.border = "1";
+      for (const row of rows) {
+        const cells = row.values ?? [];
+        const name = cells[0]?.formattedValue ?? "";
+        if (!name) continue;
 
-          // Header row
-          const thead = table.createTHead();
-          const headerRow = thead.insertRow();
-          rows[0].c.forEach((col) => {
-            const th = document.createElement("th");
-            th.textContent = col.v;
-            headerRow.appendChild(th);
-          });
+        // Remaining cells are the drill IDs for this plan
+        const ids = cells
+          .slice(1)
+          .map((c) => c?.formattedValue ?? "")
+          .filter(Boolean);
+        if (ids.length === 0) continue;
 
-          // Data rows
-          const dataRows = rows.slice(1);
-          const tbody = table.createTBody();
-          dataRows.forEach((entry) => {
-            const tr = tbody.insertRow();
-            entry.c.forEach((col) => {
-              const td = tr.insertCell();
-              td.textContent = col.v;
-            });
-          });
-
-          container.innerHTML = "";
-          container.appendChild(table);
-        } catch (err) {
-          container.textContent = "Failed to load data: " + err.message;
-        }
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.href = `training-plan.html?ids=${ids.join("+")}`;
+        a.textContent = name;
+        li.appendChild(a);
+        list.appendChild(li);
       }
 
-      loadSheet();
+      if (list.children.length === 0) {
+        list.innerHTML = "<li>No training plans found.</li>";
+      }
     </script>
   </body>
 </html>
